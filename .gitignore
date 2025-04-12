@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data
+*.csv
+*.dat
+data/
+
+# Logs & Outputs
+logs/
+outputs/
+*.png
+*.jpg
+*.gif
+*.pth
+
+# IDE / Editor specific
+.idea/
+.vscode/
+*.swp
+*~
+
+scripts/plot_architecture.py
