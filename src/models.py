@@ -15,10 +15,3 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.network(x)
-
-print("Placeholder for PINN model definition (e.g., MLP).")
-
-# Example usage (won't run yet):
-# model = MLP(input_dim=1, output_dim=1, hidden_layers=4, hidden_dim=50)
-# input_tensor = torch.randn(10, 1) # Example input (e.g., time points)
-# output = model(input_tensor) 
