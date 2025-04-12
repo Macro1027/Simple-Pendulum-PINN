@@ -12,6 +12,20 @@ This project implements Physics-Informed Neural Networks (PINNs) using PyTorch t
 - Explore hyperparameter tuning and optimization techniques.
 - Investigate generalization to other PDEs (e.g., Heat Equation).
 
+## Mathematical Formulation
+
+The simple pendulum without damping is governed by the second-order ordinary differential equation (ODE):
+
+\[ \frac{d^2 \theta}{dt^2} + \frac{g}{L} \sin(\theta) = 0 \]
+
+Where:
+- \( \theta \) is the angle of displacement
+- \( t \) is time
+- \( g \) is the acceleration due to gravity
+- \( L \) is the length of the pendulum
+
+We typically solve this as an Initial Value Problem (IVP) with given \( \theta(0) \) and \( \frac{d\theta}{dt}(0) \).
+
 ## Structure
 
 - `src/`: Core source code (models, physics definitions, utilities).
