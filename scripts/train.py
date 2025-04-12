@@ -26,6 +26,7 @@ N_COLLOCATION = 1000
 LOSS_WEIGHT_RESIDUAL = 1.0
 LOSS_WEIGHT_IC_POS = 1.0
 LOSS_WEIGHT_IC_VEL = 1.0
+GRAD_CLIP_MAX_NORM = 1.0 # Added for gradient clipping
 
 def train_pinn():
     # Seed for reproducibility
@@ -95,6 +96,8 @@ def train_pinn():
         # 4. Backpropagation and Optimization
         optimizer.zero_grad()
         total_loss.backward()
+        # Gradient Clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=GRAD_CLIP_MAX_NORM)
         optimizer.step()
 
         # Print Loss (every N epochs)
