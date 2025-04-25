@@ -1,6 +1,3 @@
 torch
-numpy
-# Add matplotlib later for plotting
 matplotlib
-# Add pina-torch later if used
-pina-torch
+numpy

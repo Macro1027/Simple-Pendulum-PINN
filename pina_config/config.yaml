@@ -1,0 +1,53 @@
+# Configuration for Pendulum PINN Training
+
+# --- File Paths ---
+paths:
+  model_save: "results/pendulum_model.pt"
+  loss_plot: "results/model/training_loss.png"
+
+# --- Problem Definition ---
+problem:
+  discretization_points: 1000
+  initial_condition_weight: 100.0 # For weighted loss functions
+  # Note: output_variables ['theta', 'omega'] defined in Pendulum class
+  # Note: domain {'t': [0.0, 1.0]} defined in Pendulum class
+
+# --- Model Architecture (ResNet specific) ---
+model:
+  type: "ResNet"
+  hidden_dim: 64
+  num_blocks: 3
+  # input_dim: 1 # Determined by problem.input_variables in train_pina.py
+  # output_dim: 2 # Determined by problem.output_variables in train_pina.py
+
+# --- Optimizer Configuration ---
+optimizer:
+  # class_name: "Adam" # Implicitly torch.optim.Adam in current setup
+  lr: 0.005
+  weight_decay: 1e-6
+
+# --- Scheduler Configuration ---
+scheduler:
+  class_name: "ReduceLROnPlateau" # Explicitly state the scheduler
+  monitor: "train_loss" # Metric monitored by scheduler (could be "val_loss" if you add validation)
+  mode: "min"           # 'min' because we monitor loss
+  factor: 0.5           # Reduce LR by half (new_lr = lr * factor)
+  patience: 40          # Wait 40 epochs with no improvement before reducing LR
+  threshold: 0.0001     # Minimum change to qualify as improvement
+  threshold_mode: "rel" # How threshold is calculated ('rel' or 'abs')
+  cooldown: 0           # Epochs to wait after LR reduction before resuming checks
+  min_lr: 1e-7          # Minimum learning rate allowed
+
+# --- Trainer Configuration ---
+trainer:
+  max_epochs: 10000
+  batch_size: 32
+  gradient_clip_val: 1.0
+  enable_model_summary: false
+
+# --- Simulation Parameters (Moved from constants.py) ---
+# Note: Physical constants (G, L) and initial conditions (theta0, omega0)
+# remain in constants.py. Scaling factors also remain there as they
+# depend on initial conditions.
+simulation:
+  time: 5.0 # Physical simulation time (used in equations) 
