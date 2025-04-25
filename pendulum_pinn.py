@@ -81,4 +81,27 @@ plt.grid(True)
 # plt.show() 
 # Or save the figure
 plt.savefig('pinn_prediction.png')
-print("Training finished. Plot saved to pinn_prediction.png") 
+print("Training finished. Plot saved to pinn_prediction.png")
+
+# --- Validation Section ---
+def analytical_solution(t, theta0=0.1, omega0=0.0, g=9.81, L=1.0):
+    """Analytical solution for small angle approximation."""
+    # Small angle approximation: theta(t) = theta0*cos(sqrt(g/L)*t) + (omega0/sqrt(g/L))*sin(sqrt(g/L)*t)
+    # This is a simplified example, assumes theta0 is small.
+    omega = np.sqrt(g/L)
+    return theta0 * np.cos(omega * t) + (omega0 / omega) * np.sin(omega * t)
+
+# Compare PINN prediction with analytical solution (for small angles)
+t_test_np = t_test.detach().numpy()
+theta_analytical = analytical_solution(t_test_np)
+
+plt.figure(figsize=(10, 6))
+plt.plot(t_test_np, theta_pred.numpy(), label='PINN Prediction', linestyle='--')
+plt.plot(t_test_np, theta_analytical, label='Analytical Solution (Small Angle)', linestyle=':')
+plt.xlabel('Time (s)')
+plt.ylabel('Theta (rad)')
+plt.title('PINN vs Analytical Solution Comparison')
+plt.legend()
+plt.grid(True)
+plt.savefig('pinn_validation_comparison.png')
+print("Validation plot saved to pinn_validation_comparison.png") 
