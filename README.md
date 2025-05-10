@@ -51,4 +51,15 @@ Predictions and comparison plots will be saved as PNG files in the root director
 A neural network trained to solve supervised learning tasks while respecting laws of physics described by general nonlinear partial differential equations. The loss function includes both the data mismatch and the physics residual.
 
 ### PINA (Physics-Informed Neural Architecture)
-An extension where the neural network architecture itself has components that are learnable or adaptable based on the physics. This project explores a simple PINA with adaptive activation functions. 
+An extension where the neural network architecture itself has components that are learnable or adaptable based on the physics. This project explores a simple PINA with adaptive activation functions.
+
+## Future Work
+
+-   Implement more sophisticated adaptive activation functions.
+-   Explore Neural ODEs for the pendulum problem.
+-   Conduct a rigorous hyperparameter search for both PINN and PINA models.
+-   Expand the comparison to include metrics like training time, convergence speed, and robustness to noise.
+-   Apply the PINA concept to more complex physical systems.
+-   Develop more comprehensive unit and integration tests.
+-   Investigate the effect of different collocation point sampling strategies.
+-   Explore transfer learning: e.g., train on a simple pendulum and adapt to a damped or forced pendulum. 
