@@ -5,17 +5,22 @@ import matplotlib.pyplot as plt
 
 # Define the Physics-Informed Neural Architecture (PINA)
 class AdaptiveActivation(nn.Module):
+    """Custom adaptive activation function: tanh(a*x) where 'a' is learnable."""
     def __init__(self):
+        """Initialize the learnable parameter 'a'."""
         super().__init__()
         # Add a learnable parameter 'a'. Initialize it to 1.
         self.a = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
+        """Apply the adaptive activation: tanh(a * x)."""
         # Apply adaptive Tanh: tanh(a * x)
         return torch.tanh(self.a * x)
 
 class PINA(nn.Module):
+    """Physics-Informed Neural Architecture for the pendulum problem."""
     def __init__(self, layers):
+        """Initialize the PINA model with specified layers and adaptive activations."""
         super().__init__()
         self.net = nn.Sequential()
         for i in range(len(layers) - 1):
@@ -29,6 +34,7 @@ class PINA(nn.Module):
 
 # Define the physics loss function
 def physics_loss(model, t):
+    """Computes the physics-based loss for the pendulum ODE."""
     t.requires_grad_(True)
     theta = model(t)
     
@@ -98,7 +104,7 @@ print("Training finished. Plot saved to pina_prediction.png")
 
 # --- Validation Section ---
 def analytical_solution(t, theta0=0.1, omega0=0.0, g=9.81, L=1.0):
-    """Analytical solution for small angle approximation."""
+    """Analytical solution for small angle pendulum approximation."""
     # Small angle approximation: theta(t) = theta0*cos(sqrt(g/L)*t) + (omega0/sqrt(g/L))*sin(sqrt(g/L)*t)
     # This is a simplified example, assumes theta0 is small.
     omega = np.sqrt(g/L)
