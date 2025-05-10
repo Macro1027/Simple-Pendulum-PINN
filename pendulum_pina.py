@@ -11,8 +11,8 @@ class AdaptiveActivation(nn.Module):
         self.a = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
-        # Apply adaptive Tanh: a * tanh(x)
-        return self.a * torch.tanh(x)
+        # Apply adaptive Tanh: tanh(a * x)
+        return torch.tanh(self.a * x)
 
 class PINA(nn.Module):
     def __init__(self, layers):
