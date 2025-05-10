@@ -48,8 +48,8 @@ def physics_loss(model, t):
 
 # Training parameters
 layers = [1, 20, 20, 1] # Input: time (1D), Output: theta (1D)
-learning_rate = 1e-3
-epochs = 10000
+learning_rate = 5e-4
+epochs = 12000
 
 # Create the model and optimizer
 pina = PINA(layers)
