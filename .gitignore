@@ -157,3 +157,6 @@ pinn_prediction.png
 pina_prediction.png
 comparison.png
 parameter_study.png
+
+# Untracked directories like pinn/
+pinn/
