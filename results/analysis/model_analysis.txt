@@ -1,0 +1,35 @@
+Pendulum Model Analysis Results
+=============================
+
+Initial Conditions:
+Initial Angle (θ₀): 0.785398 rad
+Initial Velocity (ω₀): 0.000000 rad/s
+
+Physical Parameters:
+Gravity (g): 9.810000 m/s²
+Pendulum Length (L): 1.000000 m
+
+Scaling Factors:
+θ Scale: 3.141593
+ω Scale: 2.636919
+
+Statistics:
+Maximum Angle: 6.523203 rad
+Maximum Angular Velocity: 41.375011 rad/s
+Energy Conservation Error: 3.287291e+02 J/kg
+Maximum Physics Residual 1: 4.152173e+01
+Maximum Physics Residual 2: 3.619405e+01
+
+Time Series Data (first 10 points):
+t(s)    θ(rad)    ω(rad/s)    E(J/kg)
+----------------------------------------
+0.000    0.780297    -0.000009    2.837990
+0.005    0.769697    -0.167692    2.779290
+0.010    0.757016    -0.337096    2.736041
+0.015    0.741786    -0.505689    2.705309
+0.020    0.723561    -0.671448    2.683286
+0.025    0.701945    -0.832847    2.666023
+0.030    0.676630    -0.988776    2.650109
+0.035    0.647423    -1.138465    2.633193
+0.040    0.614262    -1.281339    2.614194
+0.045    0.577218    -1.416913    2.593200
