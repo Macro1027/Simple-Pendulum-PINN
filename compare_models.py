@@ -2,9 +2,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-# (Assuming pendulum_pinn.py and pendulum_pina.py define their respective models and can be imported)
-# from pendulum_pinn import PINN as PendulumPINN, physics_loss as pinn_physics_loss
-# from pendulum_pina import PINA as PendulumPINA, physics_loss as pina_physics_loss
+# (Assuming train_pinn_standard.py and train_pinn_adaptive.py define their respective models and can be imported)
+# from train_pinn_standard import PINN as PendulumPINN, physics_loss as pinn_physics_loss
+# from train_pinn_adaptive import PINA as PendulumPINA, physics_loss as pina_physics_loss
 
 # Placeholder for loading trained models (paths would need to be accurate)
 # PINN_MODEL_PATH = 'pinn_model.pt' # Example path
