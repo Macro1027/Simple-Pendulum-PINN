@@ -298,42 +298,83 @@ def plot_residual_evolution(t, residuals, theta, save_path_base='results/physics
     return fig
 
 def compare_with_analytical(model, t_max=SIMULATION_TIME, num_points=1000, save_path_base='results/physics/'):
-    """Compare PINN solution with analytical solution using scipy."""
+    """Compare PINN solution with both linear and nonlinear analytical solutions."""
     # Generate time points and get PINN predictions
     t = generate_time_points(t_max=t_max, num_points=num_points)
-    theta_pinn, _ = predict_pendulum_states(model, t)
+    theta_pinn, omega_pinn = predict_pendulum_states(model, t)
     t_np = t.squeeze().numpy()
     
-    # Solve small-angle approximation using scipy (θ'' + (g/L)θ = 0)
-    def harmonic_oscillator(t, y):
+    # 1. Linear SHM solution (small angle approximation)
+    def linear_shm(t, y):
         theta, omega = y
         return [omega, -(GRAVITY/PENDULUM_LENGTH) * theta]
     
-    sol = solve_ivp(
-        harmonic_oscillator, 
+    sol_linear = solve_ivp(
+        linear_shm, 
         [0, t_max], 
-        [INITIAL_ANGLE, INITIAL_VELOCITY],  # Initial conditions [theta_0, omega_0]
+        [INITIAL_ANGLE, INITIAL_VELOCITY],
         t_eval=t_np,
         method='RK45'
     )
     
+    # 2. Full nonlinear pendulum solution
+    def nonlinear_pendulum(t, y):
+        theta, omega = y
+        return [omega, -(GRAVITY/PENDULUM_LENGTH) * np.sin(theta)]
+    
+    sol_nonlinear = solve_ivp(
+        nonlinear_pendulum,
+        [0, t_max],
+        [INITIAL_ANGLE, INITIAL_VELOCITY],
+        t_eval=t_np,
+        method='RK45',
+        rtol=1e-8,  # Tighter tolerances for accuracy
+        atol=1e-8
+    )
+    
     # Plot comparison
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
+    
+    # Main plot
+    plt.subplot(2, 1, 1)
     plt.plot(t_np, theta_pinn, 'b-', label='PINN', linewidth=2)
-    plt.plot(t_np, sol.y[0], 'r--', label='Linear SHM', linewidth=2)
-    plt.plot(t_np, np.abs(theta_pinn - sol.y[0]), 'g:', label='Difference', alpha=0.5)
+    plt.plot(t_np, sol_nonlinear.y[0], 'r--', label='Nonlinear Analytical', linewidth=2)
+    plt.plot(t_np, sol_linear.y[0], 'g:', label='Linear SHM', linewidth=2)
     plt.xlabel('Time (s)')
     plt.ylabel('θ(t) [rad]')
-    plt.title('PINN vs Linear Small-Angle Approximation')
+    plt.title('Pendulum Angle: PINN vs Analytical Solutions')
     plt.legend()
     plt.grid(True)
+    
+    # Error plot
+    plt.subplot(2, 1, 2)
+    plt.plot(t_np, np.abs(theta_pinn - sol_nonlinear.y[0]), 'r-', label='PINN vs Nonlinear', linewidth=2)
+    plt.plot(t_np, np.abs(theta_pinn - sol_linear.y[0]), 'g-', label='PINN vs Linear', linewidth=2)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Absolute Error [rad]')
+    plt.title('Error Analysis')
+    plt.legend()
+    plt.grid(True)
+    plt.yscale('log')  # Log scale for better error visualization
+    
+    plt.tight_layout()
     
     # Ensure directory exists and save
     os.makedirs(save_path_base, exist_ok=True)
     save_name = os.path.join(save_path_base, 'analytical_comparison.png')
     plt.savefig(save_name, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"Analytical comparison saved to {save_name}")
+    
+    # Print some statistics
+    print("\nAnalytical Comparison Statistics:")
+    print(f"Initial Angle: {INITIAL_ANGLE:.4f} rad ({np.degrees(INITIAL_ANGLE):.2f}°)")
+    print(f"Initial Velocity: {INITIAL_VELOCITY:.4f} rad/s")
+    print("\nMaximum Errors:")
+    print(f"PINN vs Nonlinear: {np.max(np.abs(theta_pinn - sol_nonlinear.y[0])):.6f} rad")
+    print(f"PINN vs Linear: {np.max(np.abs(theta_pinn - sol_linear.y[0])):.6f} rad")
+    print(f"Nonlinear vs Linear: {np.max(np.abs(sol_nonlinear.y[0] - sol_linear.y[0])):.6f} rad")
+    
+    print(f"\nAnalytical comparison saved to {save_name}")
 
 def main():
     """Main function to generate pendulum visualizations."""

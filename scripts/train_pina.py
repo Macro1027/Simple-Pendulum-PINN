@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import yaml # Import YAML loader
 import os   # For path joining
 # --- Imports for Callback ---
-from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.callbacks import Callback, EarlyStopping
 # --------------------------
 # --- Imports for Scheduler ---
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -53,6 +53,8 @@ class LossHistoryCallback(Callback):
         self.data_losses = []
         self.physics_losses = []
         self.total_losses = []
+        self.prediction_history = []  # Store predictions every 500 epochs
+        self.epochs = []  # Store corresponding epochs
 
     def on_train_epoch_end(self, trainer, pl_module):
         # Access loss from callback metrics directly
@@ -76,7 +78,55 @@ class LossHistoryCallback(Callback):
         if 'dynamics_loss' in metrics:
             physics_loss = metrics['dynamics_loss'].item()
         self.physics_losses.append(physics_loss)
-# ---------------------------------------
+
+        # Store predictions every 500 epochs
+        current_epoch = trainer.current_epoch
+        if current_epoch % 500 == 0:
+            self.epochs.append(current_epoch)
+            # Generate predictions for the full time domain
+            t = torch.linspace(0, 1, 1000).reshape(-1, 1)
+            t_label = LabelTensor(t, labels=['t'])
+            with torch.no_grad():
+                predictions = pl_module.model(t_label)
+                theta_pred = predictions.extract(['theta']).cpu().numpy() * THETA_SCALE
+            self.prediction_history.append(theta_pred)
+
+def plot_training_predictions(loss_history, config):
+    """
+    Plot and save the training predictions history showing how the model's predictions
+    evolve during training.
+    
+    Args:
+        loss_history (LossHistoryCallback): Callback object containing prediction history
+        config: Configuration object containing paths and other settings
+    """
+    save_path = os.path.join(os.path.dirname(config['paths']['loss_plot']), 'training_predictions.png')
+    plt.figure(figsize=(12, 7))
+    
+    # Generate time points for x-axis
+    t = np.linspace(0, config['simulation']['time'], 1000)
+    
+    # Plot predictions for each stored epoch
+    for epoch, pred in zip(loss_history.epochs, loss_history.prediction_history):
+        plt.plot(t, pred, alpha=0.5, label=f'Epoch {epoch}')
+    
+    plt.xlabel('Time (s)')
+    plt.ylabel('Angle (rad)')
+    plt.title('Evolution of PINN Predictions During Training')
+    plt.grid(True)
+    
+    # Add legend with fewer entries to avoid overcrowding
+    handles, labels = plt.gca().get_legend_handles_labels()
+    # Show only every 3rd entry in legend
+    plt.legend(handles[::3], labels[::3], loc='upper right')
+    
+    plt.tight_layout()
+    
+    # Save the plot
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Training predictions plot saved to {save_path}")
 
 # --- Define Custom PINN for Scheduler Configuration ---
 class CustomPINN(PINN):
@@ -333,118 +383,51 @@ def plot_training_loss(loss_history, config):
 
 
 def setup_training(problem, model, config):
-    """
-    Configure the training setup with optimizer and trainer using the adjusted CustomPINN.
+    """Setup training components based on configuration."""
+    # Create dummy PINA optimizer wrapper (will be replaced by actual torch optimizer)
+    dummy_pina_optimizer = TorchOptimizer(torch.optim.Adam, lr=config['optimizer']['lr'])
     
-    Args:
-        problem: The pendulum problem instance
-        model: The neural network model
-        config: Configuration object containing paths and other settings
-        
-    Returns:
-        tuple: (Trainer, LossHistoryCallback) Configured trainer object and callback instance
-    """
-    # 1. Define configuration for the REAL optimizer and scheduler from config
-    optimizer_class = getattr(torch.optim, config['optimizer'].get('class_name', 'Adam')) # Get class dynamically
-    
-    # --- Get optimizer config and explicitly cast numerical params ---
-    raw_optimizer_config = {k: v for k, v in config['optimizer'].items() if k != 'class_name'}
-    
-    optimizer_kwargs = {}
-    for key, value in raw_optimizer_config.items():
-        # Cast known float parameters explicitly
-        if key in ['lr', 'weight_decay']: 
-             try:
-                 optimizer_kwargs[key] = float(value)
-             except (ValueError, TypeError):
-                 print(f"Warning: Could not convert optimizer param '{key}' with value '{value}' to float. Using original value.")
-                 optimizer_kwargs[key] = value 
-        # Handle betas tuple specifically (assuming YAML loads it correctly as list/tuple)
-        elif key == 'betas': 
-             if isinstance(value, (list, tuple)) and len(value) == 2:
-                 try:
-                     optimizer_kwargs[key] = (float(value[0]), float(value[1]))
-                 except (ValueError, TypeError):
-                      print(f"Warning: Could not convert optimizer param 'betas' values '{value}' to float tuple. Using original value.")
-                      optimizer_kwargs[key] = value
-             else:
-                 print(f"Warning: Optimizer param 'betas' expected a list/tuple of two numbers, got '{value}'. Using original value.")
-                 optimizer_kwargs[key] = value
-        # Keep other parameters as they are
-        else:
-            optimizer_kwargs[key] = value 
-    # --------------------------------------------------------------
-            
-    # Get scheduler class and kwargs from config
-    scheduler_config = config.get('scheduler', {}) # Get scheduler section, default to empty dict
-    scheduler_class = getattr(torch.optim.lr_scheduler, scheduler_config.get('class_name', 'ReduceLROnPlateau')) # Get class dynamically
-    # --- Also cast numeric scheduler params ---
-    raw_scheduler_config = {k: v for k, v in scheduler_config.items() if k != 'class_name' and k != 'monitor'}
-    scheduler_kwargs = {}
-    for key, value in raw_scheduler_config.items():
-        # Cast known float parameters explicitly for scheduler
-        if key in ['factor', 'threshold', 'min_lr']:
-            try:
-                scheduler_kwargs[key] = float(value)
-            except (ValueError, TypeError):
-                 print(f"Warning: Could not convert scheduler param '{key}' with value '{value}' to float. Using original value.")
-                 scheduler_kwargs[key] = value
-        # Cast known integer parameters explicitly for scheduler
-        elif key in ['patience', 'cooldown']:
-             try:
-                 scheduler_kwargs[key] = int(value)
-             except (ValueError, TypeError):
-                 print(f"Warning: Could not convert scheduler param '{key}' with value '{value}' to int. Using original value.")
-                 scheduler_kwargs[key] = value
-        # Keep other parameters (like 'mode', 'threshold_mode') as strings
-        else:
-             scheduler_kwargs[key] = value
-    # ---------------------------------------
-    # --- Read monitor from config ---
-    scheduler_monitor = scheduler_config.get('monitor', 'train_loss') # Default to 'train_loss' if not specified
-    # --------------------------------
-
-    # 2. Create a DUMMY PINA TorchOptimizer wrapper JUST for CustomPINN's super().__init__()
-    # It needs an optimizer_class, but its kwargs don't matter as it won't be used for optimization.
-    dummy_pina_optimizer = TorchOptimizer(
-        optimizer_class=torch.optim.Adam, # Pass the CLASS
-        optimizer_kwargs={} # Empty kwargs are fine for the dummy
-    )
-
-    # 3. Instantiate CustomPINN, passing the DUMMY optimizer
-    #    and the configuration for the REAL optimizer/scheduler.
-    #    Ensure the CORRECTLY PROCESSED kwargs are passed here.
+    # Create the custom PINN instance
     pinn = CustomPINN(
-        problem, 
-        model, 
-        dummy_pina_optimizer=dummy_pina_optimizer, # Pass the dummy
-        optimizer_class=optimizer_class,           # Pass the real config class
-        optimizer_kwargs=optimizer_kwargs,         # Pass the PROCESSED kwargs
-        scheduler_class=scheduler_class,           # Pass the real config class
-        scheduler_kwargs=scheduler_kwargs,         # Pass the PROCESSED kwargs
-        # --- Pass the monitor read from config ---
-        scheduler_monitor=scheduler_monitor        
-        # ---------------------------------------
+        problem=problem,
+        model=model,
+        dummy_pina_optimizer=dummy_pina_optimizer,
+        optimizer_class=torch.optim.Adam,
+        optimizer_kwargs={
+            'lr': config['optimizer']['lr'],
+            'weight_decay': config['optimizer']['weight_decay']
+        },
+        scheduler_class=ReduceLROnPlateau,
+        scheduler_kwargs={
+            'mode': config['scheduler']['mode'],
+            'factor': config['scheduler']['factor'],
+            'patience': config['scheduler']['patience'],
+            'threshold': config['scheduler']['threshold'],
+            'threshold_mode': config['scheduler']['threshold_mode'],
+            'cooldown': config['scheduler']['cooldown'],
+            'min_lr': config['scheduler']['min_lr']
+        }
     )
     
-    # --- Instantiate the callback class ---
-    loss_callback_instance = LossHistoryCallback()
-    # ------------------------------------
+    # Create callbacks
+    loss_history = LossHistoryCallback()
+    early_stop = EarlyStopping(
+        monitor='train_loss',
+        patience=500,
+        min_delta=1e-4,
+        mode='min',
+        verbose=True
+    )
     
+    # Create trainer
     trainer = Trainer(
-        pinn,
-        max_epochs=config['trainer']['max_epochs'], # From config
-        enable_model_summary=config['trainer']['enable_model_summary'], # From config
-        batch_size=config['trainer']['batch_size'],  # From config
-        gradient_clip_val=1.0,
-        # --- Pass the callback instance ---
-        callbacks=[loss_callback_instance]
-        # ----------------------------------
+        max_epochs=config['trainer']['max_epochs'],
+        callbacks=[loss_history, early_stop],
+        gradient_clip_val=config['trainer']['gradient_clip_val'],
+        enable_model_summary=config['trainer']['enable_model_summary']
     )
     
-    # --- Return trainer and callback instance ---
-    return trainer, loss_callback_instance
-    # ------------------------------------------
+    return trainer, pinn, loss_history
 
 
 def main():
@@ -467,11 +450,14 @@ def main():
     )
 
     # Setup and run training using the adjusted setup function
-    trainer, loss_history = setup_training(problem, model, config) # Pass full config
+    trainer, pinn, loss_history = setup_training(problem, model, config) # Pass full config
     trainer.train()
     
     # Plot and save training loss history with all components
     plot_training_loss(loss_history, config)
+    
+    # Plot and save training predictions history
+    plot_training_predictions(loss_history, config)
     
     # --- Verification Test ---
     print("\nRunning verification test...")
